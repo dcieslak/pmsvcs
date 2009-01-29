@@ -1,0 +1,26 @@
+
+				 PMS
+
+		       Patch Management System
+		    Any-VCS local branches support
+		       dcieslak@aplikacja.info
+
+PMS is a small tool aimed at maintaining local branches independent of
+current VCS (Version Control System) used. Currently PMS supports the
+follogin VCS-es:
+
+ - Subversion
+ - GIT
+ - CVS
+ - Bazaar (new!)
+
+Usage: see attached documentation.
+
+With no arguments pms shows help, list of local branches, current
+local branch and state of files in working copy based on VCS used.
+
+How does it work? PMS creates .pms subdirectory in current directory and holds
+here pacthes (located by name) and current patch name (in .pms/.currect file).
+
+Pretty simple!
+

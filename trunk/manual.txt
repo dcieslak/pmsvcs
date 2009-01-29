@@ -1,0 +1,77 @@
+				 PMS
+		       Patch Management System
+		    Any-VCS local branches support
+
+*PMS* is a small tool aimed at maintaining local branches independent of
+current VCS (Version Control System) used. Currently PMS supports the
+following VCS-es:
+
+    * Subversion
+    * GIT
+    * CVS
+    * Bazaar (new!) 
+
+Usage:
+
+    pms import <patch-name> | switch <patch-name>
+      switch <patch-name> | ci [<patch-name>] | reset | ann <file>
+
+With no arguments pms shows help, list of local branches, current local
+branch and state of files in working copy based on VCS used.
+
+    The Story
+
+We (Aplikacja.info software systems) are a small Polish company that
+create custom software systems using Python or Java. We are using
+stable master/trunk policy, so we are using heavily *branching* for
+peer code review (our adaptation of XP's Pair Programming). Local
+branching support is very helpful facility for us. So: *PMS* was born.
+That's all, folks!
+
+Author contact: _dcieslak at aplikacja.info_.
+
+    Usage
+
+pms import <patch-name>
+    Import opeation creates local branch based on local modifications
+    made to SVN/GIT repository. A .pms directory is created and patch
+    with given name is stored inside. 
+
+pms switch <patch-name>, pms co <patch-name>
+    Saves current local branch (if there's any) and switches to the
+    branch given. 
+
+pms ci [<patch-name>]
+    Saves current local branch or creates new one if name is given.
+    Shows an error if there's no current local branch or new branch
+    already exists. 
+
+pms reset
+    Saves current local branch and restores current workspace. 
+
+pms ann <file>
+    Shows annotation of selected file (login, commit date for every line) 
+
+pms split new-patch-name
+    Inspired by Tomayko's Blog Entru
+    <http://tomayko.com/writings/the-thing-about-git>. This operation:
+
+        * Assume you have uncommitted changes in working copy with two
+          tanged tasks you want to make in separate commits
+        * an $EDTOR is opened with current patch
+        * you have to *leave* changes that will go into new patch
+        * new patch is created and it's removed from working copy 
+
+Binary files
+
+PMS tries to detect binary files modification and refuses to continue if
+such file is found.
+
+How does it work?
+
+PMS creates .pms subdirectory in current directory and holds here
+pacthes (located by name) and current patch name (in .pms/.currect
+file). In .pms/.history directory a backup of processed PMS checkins are
+stored here (hourly).
+
+Pretty simple!
