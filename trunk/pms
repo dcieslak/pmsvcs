@@ -1,0 +1,346 @@
+#!/bin/bash
+
+DIR=.pms
+CURRENT=$DIR/.current
+HISTORY=$DIR/.history
+DATE=`date +%H`
+TMP_FILE=/tmp/$LOGNAME.pms
+TMP_FILE2=/tmp/$LOGNAME.2.pms
+
+function create_dirs() {
+	test -d $DIR || mkdir $DIR
+	test -d $HISTORY || mkdir $HISTORY
+	test -f $CURRENT || touch $CURRENT
+}
+
+
+test -z "$PMS_BROWSER" && export PMS_BROWSER=less
+
+
+######################################################################
+if test -d .svn
+then
+	function VS_UNKNOWN_FILES() {
+		svn st | awk '$1 == "?" {print; exit(1)}'
+	}
+	function VS_DIFF() {
+		svn --diff-cmd diff di > $TMP_FILE2 || {
+			exit 1
+		}
+		cat $TMP_FILE2 | awk '/^Index/ {file=$2} /^Cannot display/ {
+			print file " is binary" >> "/dev/stderr";
+			exit(1);
+		}' || {
+			exit 1
+		}
+		cat $TMP_FILE2
+	}
+	function VS_LOG() {
+		svn log -r HEAD:1 $*
+	}
+	function VS_REVERT() {
+		svn di | awk '/^Index/ {file=$2} /^Cannot display/ {
+			print file " is binary"; exit(1);
+		}' || {
+			exit 1
+		}
+		svn revert -R .
+		svn st | awk '/^\?/ {print "rm -r", $2}' | sh
+	}
+	function VS_ADD_UNKNOWN() {
+		# add unknown
+		svn st | awk '
+		/^\?/  && !/.orig$/ && !/.rej$/ {
+			print "test -s", $2, "&& svn add", $2
+		}
+		' | sh
+
+		# remove empty files
+		svn st | awk '
+		{
+			print "test -s", $2, "|| svn rm --force", $2
+		}
+		' | sh
+	}
+	function VS_STATE() {
+		svn st
+	}
+	function VS_PATCH() {
+		patch -p0 --ignore-whitespace $*
+	}
+	function VS_ANN() {
+		svn ann "$1"
+	}
+elif test -d .git
+then
+	function VS_UNKNOWN_FILES() {
+		git status -a | awk '/Untracked files/ {print; exit(1)}'
+	}
+	function VS_DIFF() {
+		git diff HEAD
+	}
+	function VS_LOG() {
+		git log $*
+	}
+	function VS_REVERT() {
+		git checkout -f
+	}
+	function VS_ADD_UNKNOWN() {
+		git add .
+	}
+	function VS_STATE() {
+		git status -a | cat
+	}
+	function VS_PATCH() {
+		patch -p1 --ignore-whitespace $*
+	}
+	function VS_ANN() {
+		git annotate "$1"
+	}
+elif test -d .bzr
+then
+	function VS_UNKNOWN_FILES() {
+		bzr status -S | awk '/^\?/ {print; exit(1)}'
+	}
+	function VS_DIFF() {
+		bzr diff || true
+	}
+	function VS_LOG() {
+		bzr log -l 10 $*
+	}
+	function VS_REVERT() {
+		bzr revert
+	}
+	function VS_ADD_UNKNOWN() {
+		bzr add
+	}
+	function VS_STATE() {
+		bzr status -S
+	}
+	function VS_PATCH() {
+		patch -p0 --ignore-whitespace $*
+	}
+	function VS_ANN() {
+		bzr annotate "$1"
+	}
+elif test -d CVS
+then
+	function VS_UNKNOWN_FILES() {
+		cvs up | awk '/^\?/ {print; exit(1)}'
+	}
+	function VS_DIFF() {
+		cvs di -uN > $TMP_FILE2
+		awk '/^Index/ {file=$2} /^Binary/ {
+			print file " is binary"; exit(1);
+		}' $TMP_FILE2 || {
+			exit 1
+		}
+		cat $TMP_FILE2
+	}
+	function VS_LOG() {
+		cvs log $*
+	}
+	function VS_REVERT() {
+		cvs di -uN | awk '/^Index/ {file=$2} /^Binary/ {
+			print file " is binary"; exit(1);
+		}' || {
+			exit 1
+		}
+		cvsdiscard
+		cvs up | awk '/^\?/ {print "rm", $2}' | sh
+		cvs up | awk '/^A/ {print "cvs rm -f", $2}' | sh
+	}
+	function VS_ADD_UNKNOWN() {
+		cvs up | awk '/^\?/  && !/.orig$/ && !/.rej$/ {print "cvs add", $2}' | sh
+		cvs up | awk '/^\?/  && !/.orig$/ && !/.rej$/ {print "cvs add", $2}' | sh
+		cvs up | awk '/^\?/  && !/.orig$/ && !/.rej$/ {print "cvs add", $2}' | sh
+	}
+	function VS_STATE() {
+		cvs up
+	}
+	function VS_PATCH() {
+		patch -p0 --ignore-whitespace $*
+	}
+	function VS_ANN() {
+		cvs ann "$1"
+	}
+fi
+
+######################################################################
+case "$1" in
+new)
+	VS_UNKNOWN_FILES || {
+		echo unknown files, abort
+		exit 1
+	}
+	create_dirs
+	NAME=`cat $CURRENT`
+	test -z "$NAME" || {
+		echo close existing patch: $NAME, aborting
+		exit 1
+	}
+
+	NAME=$2
+	test -z "$NAME" && {
+		echo empty name, aborting
+		exit 1
+	}
+	test -f $DIR/$NAME && {
+		echo patch $NAME already exists, abort
+		exit 1
+	}
+	VS_DIFF > $TMP_FILE && {
+		mv $TMP_FILE $DIR/$NAME
+		echo $NAME > $CURRENT
+	}
+;;
+log)
+	echo log using $PMS_BROWSER
+	VS_LOG | $PMS_BROWSER
+;;
+ci)
+	VS_UNKNOWN_FILES || {
+		echo unkown files, aborting
+		exit 1
+	}
+	create_dirs
+	NAME=`cat $CURRENT`
+	NEW_NAME="$2"
+	test -z $NEW_NAME || {
+		test -f $DIR/$NEW_NAME && {
+			echo patch $NAME already exists, abort
+			exit 1
+		}
+		NAME=$NEW_NAME
+		echo $NAME > $CURRENT
+	}
+	test -z "$NAME" && {
+		echo no patch name defined, use: ci name
+		exit 1
+	}
+	VS_DIFF > $TMP_FILE && {
+		echo saving $HISTORY/$NAME.$DATE
+		cp $TMP_FILE $HISTORY/$NAME.$DATE
+		echo saving $DIR/$NAME
+		mv $TMP_FILE $DIR/$NAME
+	}
+;;
+di)
+	VS_DIFF > $TMP_FILE && {
+		echo diff using $PMS_BROWSER
+		cat $TMP_FILE | $PMS_BROWSER
+	}
+;;
+ann)
+	VS_ANN "$2" > $TMP_FILE && {
+		echo annotate using $PMS_BROWSER
+		cat $TMP_FILE | $PMS_BROWSER
+	}
+;;
+reset)
+	VS_UNKNOWN_FILES || {
+		exit 1
+	}
+	create_dirs
+	NAME=`cat $CURRENT`
+
+	test -z "$NAME" && {
+		echo "Do you really want to lose your modifications [y/n]?"
+		read answer
+		test "$answer" != "y" && exit 1
+	}
+
+	test -z "$NAME" || {
+		# save current patch
+		VS_DIFF > $TMP_FILE && {
+			echo saving $DIR/$NAME
+			mv $TMP_FILE $DIR/$NAME
+			echo '' > $CURRENT
+			test -s $DIR/$NAME || {
+				echo empty patch $DIR/$NAME, deleted it
+				rm $DIR/$NAME
+			}
+		}
+	}
+
+	VS_REVERT
+	echo '' > $CURRENT
+;;
+co|switch)
+	NAME=$2
+	test -z "$NAME" && {
+		echo empty name, available names
+		cd $DIR
+		ls
+		exit 1
+	}
+	test -f $DIR/$NAME || {
+		echo patch doesnt exists: $NAME
+		echo available patches:
+		cd $DIR
+		ls
+		exit 1
+	}
+
+	OLD=`cat $CURRENT`
+	test "$OLD" = "$NAME" && {
+		echo patch $NAME is already opened
+		exit 1
+	}
+
+	test -z "$OLD" || {
+		echo saving current patch: $OLD
+		VS_DIFF > $TMP_FILE && {
+			mv $TMP_FILE $DIR/$NAME
+			VS_REVERT
+			echo '' > $CURRENT
+		}
+	}
+
+	VS_PATCH < $DIR/$NAME
+	VS_ADD_UNKNOWN
+	echo $NAME > $CURRENT
+	echo version checkout: $NAME
+;;
+split)
+	NAME=$2
+	test -z "$NAME" && {
+		echo empty name. please, select new patch name
+		cd $DIR
+		ls
+		exit 1
+	}
+	test -f $DIR/$NAME &&  {
+		echo patch already exists: $NAME, abort
+		exit 1
+	}
+	test -z "$EDITOR" && {
+		echo please, set EDITOR variable
+		exit 1
+	}
+
+	VS_DIFF > $DIR/$NAME
+	$EDITOR $DIR/$NAME
+	VS_PATCH -R < $DIR/$NAME
+	echo current patch split by workspace and $NAME
+	echo please, inspect workspace and $NAME before commit
+;;
+*)
+	echo --------------- PMS ---------------
+	echo "help: pms new patch-name | co patch-name \
+| ci [patch-name] | reset | ann | split new-patch-name"
+	test -d .pms && {
+		echo current: `cat $CURRENT`
+		echo "patches: "
+		cd .pms
+		ls -lt
+		cd ..
+	} || {
+		echo "WARN: no .pms directory (no patches registered)"
+	}
+	echo --------------- state ---------------
+	VS_STATE
+;;
+esac
+
+
