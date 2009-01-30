@@ -15,7 +15,8 @@ Usage:
 
 {{{
     pms import <patch-name> | switch <patch-name>
-      switch <patch-name> | ci [<patch-name>] | reset | ann <file>
+      | co <patch-name> | ci [<patch-name>] | reset | ann <file>
+      | split <patch-name>
 }}}
 
 With no arguments pms shows help, list of local branches, current local
@@ -34,48 +35,47 @@ Author contact: dcieslak at aplikacja.info.
 
 == Usage ==
 
-pms import patch-name
+===pms import patch-name===
 
     Import opeation creates local branch based on local modifications
     made to SVN/GIT repository. A .pms directory is created and patch
     with given name is stored inside. 
 
-pms switch patch-name, pms co patch-name
+===pms switch patch-name, pms co patch-name===
 
     Saves current local branch (if there's any) and switches to the
     branch given. 
 
-pms ci [patch-name]
+===pms ci [patch-name]===
 
     Saves current local branch or creates new one if name is given.
     Shows an error if there's no current local branch or new branch
     already exists. 
 
-pms reset
+===pms reset===
 
     Saves current local branch and restores current workspace. 
 
-pms ann file
+===pms ann file===
 
     Shows annotation of selected file (login, commit date for every line) 
 
-pms split new-patch-name
+===pms split new-patch-name===
 
-    Inspired by Tomayko's Blog Entru
-    <http://tomayko.com/writings/the-thing-about-git>. This operation:
+Inspired by Tomayko's Blog Entry
+http://tomayko.com/writings/the-thing-about-git . This operation:
 
-        * Assume you have uncommitted changes in working copy with two
-          tanged tasks you want to make in separate commits
-        * an $EDTOR is opened with current patch
-        * you have to *leave* changes that will go into new patch
-        * new patch is created and it's removed from working copy 
+  * Assume you have uncommitted changes in working copy with two tangled tasks you want to make in separate commits
+  * an $EDTOR is opened with current patch
+  * you have to *leave* changes that will go into new patch
+  * new patch is created and it's removed from working copy 
 
 == Binary files ==
 
 PMS tries to detect binary files modification and refuses to continue if
 such file is found.
 
-How does it work?
+== How does it work? ==
 
 PMS creates .pms subdirectory in current directory and holds here
 pacthes (located by name) and current patch name (in .pms/.currect
