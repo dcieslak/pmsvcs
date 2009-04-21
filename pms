@@ -110,6 +110,7 @@ then
 	}
 	function VS_REVERT() {
 		bzr revert
+		bzr st -S | awk '/^\?/ {print "rm -r", $2}' | sh
 	}
 	function VS_ADD_UNKNOWN() {
 		bzr add
