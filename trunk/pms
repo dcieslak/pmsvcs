@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 DIR=.pms
 CURRENT=$DIR/.current
 HISTORY=$DIR/.history
@@ -38,6 +39,9 @@ then
 	function VS_LOG() {
 		svn log -r HEAD:1 $*
 	}
+	function VS_CH() {
+		svn log -r HEAD:1 -l 10
+	}
 	function VS_REVERT() {
 		svn di | awk '/^Index/ {file=$2} /^Cannot display/ {
 			print file " is binary"; exit(1);
@@ -45,20 +49,32 @@ then
 			exit 1
 		}
 		svn revert -R .
-		svn st | awk '/^\?/ {print "rm -r", $2}' | sh
+		svn st | awk '/^\?/ {
+			fname = $0
+			sub(/^. */, "", fname)
+			fname = "\"" fname "\""
+			print "rm -r", fname
+		}' | sh
 	}
 	function VS_ADD_UNKNOWN() {
+
 		# add unknown
 		svn st | awk '
 		/^\?/  && !/.orig$/ && !/.rej$/ {
-			print "test -s", $2, "&& svn add", $2
+			fname = $0
+			sub(/^. */, "", fname)
+			fname = "\"" fname "\""
+			print "test -s ", fname, "&& svn add", fname
 		}
 		' | sh
 
 		# remove empty files
 		svn st | awk '
 		{
-			print "test -s", $2, "|| svn rm --force", $2
+			fname = $0
+			sub(/^. */, "", fname)
+			fname = "\"" fname "\""
+			print "test -s", fname, "|| svn rm --force", fname
 		}
 		' | sh
 	}
@@ -239,9 +255,6 @@ ann)
 	}
 ;;
 reset)
-	VS_UNKNOWN_FILES || {
-		exit 1
-	}
 	create_dirs
 	NAME=`cat $CURRENT`
 
@@ -292,7 +305,7 @@ co|switch)
 	test -z "$OLD" || {
 		echo saving current patch: $OLD
 		VS_DIFF > $TMP_FILE && {
-			mv $TMP_FILE $DIR/$NAME
+			mv $TMP_FILE $DIR/$OLD
 			VS_REVERT
 			echo '' > $CURRENT
 		}
@@ -326,10 +339,16 @@ split)
 	echo current patch split by workspace and $NAME
 	echo please, inspect workspace and $NAME before commit
 ;;
+ch)
+	VS_CH
+;;
+add)
+	VS_ADD_UNKNOWN
+;;
 *)
 	echo --------------- PMS ---------------
 	echo "help: pms new patch-name | co patch-name \
-| ci [patch-name] | reset | ann | split new-patch-name"
+| ci [patch-name] | reset | ann | split new-patch-name | add | ch"
 	test -d .pms && {
 		echo current: `cat $CURRENT`
 		echo "patches: "
