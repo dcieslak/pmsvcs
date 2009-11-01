@@ -79,6 +79,8 @@ then
 		' | sh
 	}
 	function VS_STATE() {
+		svn info | grep URL
+		echo
 		svn st
 	}
 	function VS_PATCH() {
