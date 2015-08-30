@@ -3,7 +3,7 @@
 
 		       Patch Management System
 		    Any-VCS local branches support
-		       dcieslak@aplikacja.info
+		       dcieslak at aplikacja.info
 
 PMS is a small tool aimed at maintaining local branches independent of
 current VCS (Version Control System) used. Currently PMS supports the
